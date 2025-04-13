@@ -1,0 +1,49 @@
+#index_1,
+#index_2 {
+appearance: none;
+border: 0;
+outline: 0;
+padding: 0 1rem;
+width: auto;
+font: inherit;
+color: blue;
+cursor: pointer;
+box-shadow: none;
+}
+
+#index_1::-ms-expand,
+#index_2::-ms-expand {
+display: none;
+}
+
+#index_1:hover,
+#index_2:hover {
+text-decoration: underline;
+}
+
+.flex-select {
+  display: inline-block;
+  border: none;
+}
+
+/* Custom arrow */
+  .flex-select > .form-group > div {
+    position: relative;
+  }
+
+.flex-select > .form-group > div::after {
+  content: "▼";
+  color: blue;
+  font-size: 1rem;
+  top: 7px;
+  left: 0px;
+  position: absolute;
+}
+
+.flex-select > .form-group {
+  margin: 0 0.3rem;
+}
+
+.navbar-brand {
+  white-space: wrap;
+}
