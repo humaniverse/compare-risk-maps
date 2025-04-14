@@ -1,24 +1,24 @@
 #index_1,
 #index_2 {
-appearance: none;
-border: 0;
-outline: 0;
-padding: 0 1rem;
-width: auto;
-font: inherit;
-color: blue;
-cursor: pointer;
-box-shadow: none;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  /* padding: 0 1rem; */
+  width: auto;
+  font: inherit;
+  color: blue;
+  cursor: pointer;
+  box-shadow: none;
 }
 
 #index_1::-ms-expand,
 #index_2::-ms-expand {
-display: none;
+  display: none;
 }
 
 #index_1:hover,
 #index_2:hover {
-text-decoration: underline;
+  text-decoration: underline;
 }
 
 .flex-select {
@@ -27,23 +27,31 @@ text-decoration: underline;
 }
 
 /* Custom arrow */
-  .flex-select > .form-group > div {
+.flex-select > .form-group > div {
     position: relative;
-  }
+}
 
 .flex-select > .form-group > div::after {
   content: "▼";
   color: blue;
   font-size: 1rem;
-  top: 7px;
-  left: 0px;
+  top: 0px;
+  right: 15px;
   position: absolute;
 }
 
 .flex-select > .form-group {
-  margin: 0 0.3rem;
+  /* margin: 0 0.3rem; */
+}
+
+.flex-select > div > div > .form-control {
+  padding: 0;
 }
 
 .navbar-brand {
   white-space: wrap;
+}
+
+.shiny-input-container:not(.shiny-input-container-inline) {
+  width: 100%;
 }
