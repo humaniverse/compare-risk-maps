@@ -128,6 +128,7 @@ ui <- page_fluid(
   plotlyOutput("scatterplot", height = "100%"),
   
   # ---- Compare quintiles ----
+  p(""),
   uiOutput("quintile_text"),
   sankeyNetworkOutput("quintile_comparison")
 )
@@ -213,6 +214,10 @@ server <- function(input, output, session) {
     
     plot_data <- selected_ranks()
     
+    # Generate axes rank labels
+    x_axis_rank_label <- ifelse(input$index_1 == "imd", "most deprived", "least resilient")
+    y_axis_rank_label <- ifelse(input$index_2 == "imd", "most deprived", "least resilient")
+    
     p <- ggplot(plot_data, aes(x = index_1, y = index_2)) +
       # Add unit line
       geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey") +
@@ -220,8 +225,8 @@ server <- function(input, output, session) {
       geom_point(aes(text = str_glue("<b>{ltla23_name}</b>\n\n{names(indices_list)[indices_list == input$index_1]} rank: {index_1}\n{names(indices_list)[indices_list == input$index_2]} rank: {index_2}"))) +
       
       labs(
-        x = str_glue("{names(indices_list)[indices_list == input$index_1]} rank"),
-        y = str_glue("{names(indices_list)[indices_list == input$index_2]} rank"),
+        x = str_glue("{names(indices_list)[indices_list == input$index_1]} rank\n(1 = {x_axis_rank_label})"),
+        y = str_glue("{names(indices_list)[indices_list == input$index_2]} rank\n(1 = {y_axis_rank_label})"),
         # title = paste("Scatterplot of", input$index_1, "vs", input$index_2)
       ) +
       theme_minimal()
