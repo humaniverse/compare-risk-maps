@@ -14,6 +14,7 @@ library(geographr)
 
 # ---- Load data ----
 indices <- read_rds("data/indices.rds")
+indices_ranks <- read_rds("data/indices-ranks.rds")
 
 indices_list <- c(
   "Community Resilience" = "cri",
@@ -74,9 +75,11 @@ ui <- page_fluid(
     "))
   ),
   
+  theme = bs_theme("lumen", version = 5),
+  
   title = "Compare vulnerability/resilience maps",
   
-  # The title includes an inline drop-down to choose a region.
+  # ---- Title with drop-down boxes ----
   tags$p(
     tags$div(
       style = "align-items: center;",
@@ -112,11 +115,101 @@ ui <- page_fluid(
     )
   ),
   
-  theme = bs_theme("lumen", version = 5)
+  # ---- Scatterplot ----
+  uiOutput("scatterplot_text"),
+  checkboxInput(
+    "show_regression_line",
+    label = "Show statistical relationship between the two maps?",
+    value = FALSE,
+    width = "100%"
+  ),
+  plotlyOutput("scatterplot", height = "100%")
 )
 
 # Server ----
 server <- function(input, output, session) {
+  # ---- Reactive data ----
+  selected_ranks <- reactive({
+    req(input$index_1, input$index_2)
+    
+    indices_ranks %>%
+      select(
+        ltla23_code,
+        ltla23_name,
+        !!sym(input$index_1),
+        !!sym(input$index_2)
+      ) %>%
+      rename(
+        index_1 = !!sym(input$index_1),
+        index_2 = !!sym(input$index_2)
+      )
+  })
+  
+  # ---- Scatterplot ----
+  output$scatterplot_text <- renderUI({
+    req(selected_ranks())
+    
+    plot_data <- selected_ranks()
+    
+    # Find the Local Authority with the biggest difference in ranks on the two selected indices
+    biggest_outlier <- 
+      plot_data |> 
+      mutate(rank_diff = abs(index_1 - index_2)) |>
+      filter(rank_diff == max(rank_diff, na.rm = TRUE))
+    
+    biggest_outlier_name <- biggest_outlier$ltla23_name[1]
+    biggest_outlier_index_1 <- biggest_outlier$index_1[1]
+    biggest_outlier_index_2 <- biggest_outlier$index_2[1]
+    
+    # Create a text output with the number of points
+    tags$div(
+      tags$p(
+        HTML(
+          str_glue(
+            "The chart below compares <b>{tolower(names(indices_list)[indices_list == input$index_1])}</b> and 
+           <b>{tolower(names(indices_list)[indices_list == input$index_2])}</b> for each Local Authority (dots).
+           Lower ranks represent the least resilient and most vulnerable/deprived areas."
+          )
+        )
+      ),
+      tags$p(
+        HTML(
+          str_glue(
+            "Local Authorities that are closer to the dashed line are similarly vulnerable/resilient/deprived.
+           The further away from the line, the more different they are. For example, <b>{biggest_outlier_name}</b>
+           has a {tolower(names(indices_list)[indices_list == input$index_1])} rank of {biggest_outlier_index_1}
+           but a {tolower(names(indices_list)[indices_list == input$index_2])} rank of {biggest_outlier_index_2}."
+          )
+        )
+      )
+    )
+  })
+  
+  output$scatterplot <- renderPlotly({
+    req(selected_ranks())
+    
+    plot_data <- selected_ranks()
+    
+    p <- ggplot(plot_data, aes(x = index_1, y = index_2)) +
+      # Add unit line
+      geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey") +
+      
+      geom_point(aes(text = str_glue("<b>{ltla23_name}</b>\n\n{names(indices_list)[indices_list == input$index_1]} rank: {index_1}\n{names(indices_list)[indices_list == input$index_2]} rank: {index_2}"))) +
+      
+      labs(
+        x = str_glue("{names(indices_list)[indices_list == input$index_1]} rank"),
+        y = str_glue("{names(indices_list)[indices_list == input$index_2]} rank"),
+        # title = paste("Scatterplot of", input$index_1, "vs", input$index_2)
+      ) +
+      theme_minimal()
+    
+    # Show regression line if checkbox is checked
+    if (input$show_regression_line) {
+      p <- p + geom_smooth(method = "lm", se = TRUE, color = "blue")
+    }
+    
+    ggplotly(p, tooltip = "text")
+  })
 }
 
 # Run the app ----

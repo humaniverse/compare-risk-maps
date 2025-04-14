@@ -94,3 +94,15 @@ indices <-
 
 # Save the indices
 write_rds(indices, "data/indices.rds")
+
+indices_ranks <- 
+  indices |> 
+  select(
+    ltla23_code, 
+    ltla23_name,
+    cri = cri_rank,
+    sofi = sofi_rank,
+    imd = imd_rank
+  )
+
+write_rds(indices_ranks, "data/indices-ranks.rds")
