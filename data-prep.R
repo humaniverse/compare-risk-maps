@@ -95,6 +95,7 @@ indices <-
 # Save the indices
 write_rds(indices, "data/indices.rds")
 
+# Separate out ranks
 indices_ranks <- 
   indices |> 
   select(
@@ -106,3 +107,16 @@ indices_ranks <-
   )
 
 write_rds(indices_ranks, "data/indices-ranks.rds")
+
+# Separate out quintiles
+indices_quintiles <- 
+  indices |> 
+  select(
+    ltla23_code, 
+    ltla23_name,
+    cri = cri_quintile,
+    sofi = sofi_quintile,
+    imd = imd_quintile
+  )
+
+write_rds(indices_quintiles, "data/indices-quintile.rds")

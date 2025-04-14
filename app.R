@@ -11,10 +11,12 @@ library(stringr)
 library(plotly)
 library(sf)
 library(geographr)
+library(networkD3)
 
 # ---- Load data ----
 indices <- read_rds("data/indices.rds")
 indices_ranks <- read_rds("data/indices-ranks.rds")
+indices_quintiles <- read_rds("data/indices-quintile.rds")
 
 indices_list <- c(
   "Community Resilience" = "cri",
@@ -123,16 +125,37 @@ ui <- page_fluid(
     value = FALSE,
     width = "100%"
   ),
-  plotlyOutput("scatterplot", height = "100%")
+  plotlyOutput("scatterplot", height = "100%"),
+  
+  # ---- Compare quintiles ----
+  uiOutput("quintile_text"),
+  sankeyNetworkOutput("quintile_comparison")
 )
 
 # Server ----
 server <- function(input, output, session) {
+  
   # ---- Reactive data ----
   selected_ranks <- reactive({
     req(input$index_1, input$index_2)
     
     indices_ranks %>%
+      select(
+        ltla23_code,
+        ltla23_name,
+        !!sym(input$index_1),
+        !!sym(input$index_2)
+      ) %>%
+      rename(
+        index_1 = !!sym(input$index_1),
+        index_2 = !!sym(input$index_2)
+      )
+  })
+  
+  selected_quintiles <- reactive({
+    req(input$index_1, input$index_2)
+    
+    indices_quintiles %>%
       select(
         ltla23_code,
         ltla23_name,
@@ -209,6 +232,102 @@ server <- function(input, output, session) {
     }
     
     ggplotly(p, tooltip = "text")
+  })
+  
+  # ---- Quintiles ----
+  output$quintile_text <- renderUI({
+    req(selected_quintiles())
+    
+    current_indices <- selected_quintiles()
+    
+    # How many LAs are in the same quintile in both indices?
+    quintile_comparison <- 
+      current_indices |> 
+      mutate(same_quintile = index_1 == index_2) |>
+      count(same_quintile) |> 
+      mutate(prop = n / sum(n))
+    
+    n_same_quintile <- 
+      quintile_comparison |> 
+      filter(same_quintile) |> 
+      pull(n)
+    
+    prop_same_quintile <- 
+      quintile_comparison |> 
+      filter(same_quintile) |> 
+      pull(prop)
+    
+    # Find an example Local Authority that's in the worst 20% in one index but not in the other
+    example_outlier <- 
+      current_indices |> 
+      filter(index_1 == 1 & index_2 != 1) |> 
+      # Find one with the biggest discrepancy
+      arrange(desc(index_2)) |>
+      slice(1)
+    
+    example_outlier_name <- example_outlier$ltla23_name
+    example_outlier_index_1 <- example_outlier$index_1
+    example_outlier_index_2 <- example_outlier$index_2
+    
+    # Text output
+    tags$div(
+      tags$p(
+        HTML(
+          str_glue(
+            "{scales::percent(prop_same_quintile, accuracy = 0.1)} of Local Authorities ({n_same_quintile} out of {nrow(current_indices)})
+            are in the same quintile for both <b>{tolower(names(indices_list)[indices_list == input$index_1])}</b> 
+            and <b>{tolower(names(indices_list)[indices_list == input$index_2])}</b>."
+          )
+        )
+      ),
+      tags$p(
+        HTML(
+          str_glue(
+            "The chart below shows how Local Authorities in each quintile of the <b>{tolower(names(indices_list)[indices_list == input$index_1])}</b> map
+            are spread across quintiles in the <b>{tolower(names(indices_list)[indices_list == input$index_2])}</b> map.
+            Some Local Authorities might appear quite differently on each map; for example, <b>{example_outlier_name}</b>
+            is in the worst 20% in terms of {tolower(names(indices_list)[indices_list == input$index_1])} but appears in 
+            quintile {example_outlier_index_2} for {tolower(names(indices_list)[indices_list == input$index_2])}."
+          )
+        )
+      )
+    )
+  })
+  
+  output$quintile_comparison <- renderSankeyNetwork({
+    req(selected_quintiles())
+    
+    current_indices <- selected_quintiles() |> 
+      na.omit()
+    
+    # Create sankey diagram showing the flow of LAs between quintiles
+    links <- 
+      current_indices |> 
+      count(index_1, index_2, name = "value") |> 
+      mutate(
+        source = str_glue("{names(indices_list)[indices_list == input$index_1]} quintile {index_1}"),
+        target = str_glue("{names(indices_list)[indices_list == input$index_2]} quintile {index_2}")
+      ) |> 
+      mutate(
+        source = if_else(str_detect(source, "quintile 1"), paste0(source, " (worst 20%)"), source),
+        target = if_else(str_detect(target, "quintile 1"), paste0(target, " (worst 20%)"), target)
+      ) |> 
+      select(source, target, value)
+    
+    nodes <- tibble(name = unique(c(links$source, links$target)))
+    
+    # With networkD3, connection must be provided using id, not using real name like in the links dataframe. So we need to reformat it.
+    links$IDsource <- match(links$source, nodes$name)-1 
+    links$IDtarget <- match(links$target, nodes$name)-1
+    
+    # Make the Network
+    sankeyNetwork(
+      Links = links, Nodes = nodes,
+      Source = "IDsource", Target = "IDtarget",
+      Value = "value", NodeID = "name", 
+      fontSize = 16,
+      sinksRight = FALSE
+    )
   })
 }
 
