@@ -14,7 +14,7 @@ library(geographr)
 library(networkD3)
 
 # ---- Load data ----
-indices <- read_rds("data/indices.rds")
+# indices <- read_rds("data/indices.rds")
 indices_ranks <- read_rds("data/indices-ranks.rds")
 indices_quintiles <- read_rds("data/indices-quintile.rds")
 
@@ -89,7 +89,7 @@ ui <- page_fluid(
       
       # First index
       tags$div(
-        class = "flex-select",
+        class = "flex-select index_1",
         # style = "width: 227px",
         selectInput(
           "index_1",
@@ -104,7 +104,7 @@ ui <- page_fluid(
       
       # Second index
       tags$div(
-        class = "flex-select",
+        class = "flex-select index_2",
         # style = "width: 227px",
         selectInput(
           "index_2",
@@ -190,8 +190,8 @@ server <- function(input, output, session) {
       tags$p(
         HTML(
           str_glue(
-            "The chart below compares <b>{tolower(names(indices_list)[indices_list == input$index_1])}</b> and 
-           <b>{tolower(names(indices_list)[indices_list == input$index_2])}</b> for each Local Authority (dots).
+            "The chart below compares <span class=index1>{tolower(names(indices_list)[indices_list == input$index_1])}</span> and 
+           <span class=index2>{tolower(names(indices_list)[indices_list == input$index_2])}</span> for each Local Authority (dots).
            Lower ranks represent the least resilient and most vulnerable/deprived areas."
           )
         )
@@ -218,12 +218,42 @@ server <- function(input, output, session) {
     x_axis_rank_label <- ifelse(input$index_1 == "imd", "most deprived", "least resilient")
     y_axis_rank_label <- ifelse(input$index_2 == "imd", "most deprived", "least resilient")
     
+    # Generate annotation labels
+    x_annotation_lowest <- switch(
+      input$index_1,
+      "imd" = "More deprived",
+      "sofi" = "Worse social fabric",
+      "cri" = "Less resilient"
+    )
+    
+    x_annotation_highest <- switch(
+      input$index_1,
+      "imd" = "Less deprived",
+      "sofi" = "Stronger social fabric",
+      "cri" = "More resilient"
+    )
+    
+    y_annotation_lowest <- switch(
+      input$index_2,
+      "imd" = "More deprived",
+      "sofi" = "Worse social fabric",
+      "cri" = "Less resilient"
+    )
+    
+    y_annotation_highest <- switch(
+      input$index_2,
+      "imd" = "Less deprived",
+      "sofi" = "Stronger social fabric",
+      "cri" = "More resilient"
+    )
+    
     p <- ggplot(plot_data, aes(x = index_1, y = index_2)) +
       # Add unit line
       geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey") +
       
       geom_point(aes(text = str_glue("<b>{ltla23_name}</b>\n\n{names(indices_list)[indices_list == input$index_1]} rank: {index_1}\n{names(indices_list)[indices_list == input$index_2]} rank: {index_2}"))) +
       
+      #ylim(0, 310) +
       labs(
         x = str_glue("{names(indices_list)[indices_list == input$index_1]} rank\n(1 = {x_axis_rank_label})"),
         y = str_glue("{names(indices_list)[indices_list == input$index_2]} rank\n(1 = {y_axis_rank_label})"),
@@ -236,7 +266,68 @@ server <- function(input, output, session) {
       p <- p + geom_smooth(method = "lm", se = TRUE, color = "blue")
     }
     
-    ggplotly(p, tooltip = "text")
+    ggplotly(p, tooltip = "text") |> 
+      add_annotations(
+        x = 20,
+        y = 311,
+        text = str_glue("◄ {x_annotation_lowest}"),
+        bgcolor = "#008837",
+        font = list(color = "white"),
+        showarrow = F
+      ) |>
+      add_annotations(
+        x = 280,
+        y = 311,
+        text = str_glue("{x_annotation_highest} ►"),
+        bgcolor = "#008837",
+        font = list(color = "white"),
+        showarrow = F
+      ) |> 
+      add_annotations(
+        x = 305,
+        y = 60,
+        text = str_glue("{y_annotation_lowest} ►"),
+        textangle = 90,
+        bgcolor = "#7b3294",
+        font = list(color = "white"),
+        showarrow = F
+      ) |>
+      add_annotations(
+        x = 305,
+        y = 240,
+        text = str_glue("◄ {y_annotation_highest}"),
+        textangle = 90,
+        bgcolor = "#7b3294",
+        font = list(color = "white"),
+        showarrow = F
+      ) |>
+      config(
+        displayModeBar = TRUE,
+        displaylogo = FALSE,
+        modeBarButtonsToRemove = list(
+          #"zoom",
+          "pan",
+          "select",
+          #"zoomIn",
+          #"zoomOut",
+          "autoScale",
+          #"resetScale",
+          "lasso2d",
+          "hoverClosestCartesian",
+          "hoverCompareCartesian"
+        )
+      ) |> 
+      layout(
+        # margin = list(t = 50),
+        xaxis = list(
+          range = list(-5, 310), 
+          title = list(font = list(color = "#008837"))
+        ),
+        yaxis = list(
+          range = list(-5, 325), 
+          title = list(font = list(color = "#7b3294"))
+        )
+      )
   })
   
   # ---- Quintiles ----
@@ -280,16 +371,16 @@ server <- function(input, output, session) {
         HTML(
           str_glue(
             "{scales::percent(prop_same_quintile, accuracy = 0.1)} of Local Authorities ({n_same_quintile} out of {nrow(current_indices)})
-            are in the same quintile for both <b>{tolower(names(indices_list)[indices_list == input$index_1])}</b> 
-            and <b>{tolower(names(indices_list)[indices_list == input$index_2])}</b>."
+            are in the same quintile for both <span class=index1>{tolower(names(indices_list)[indices_list == input$index_1])}</span> 
+            and <span class=index2>{tolower(names(indices_list)[indices_list == input$index_2])}</span>."
           )
         )
       ),
       tags$p(
         HTML(
           str_glue(
-            "The chart below shows how Local Authorities in each quintile of the <b>{tolower(names(indices_list)[indices_list == input$index_1])}</b> map
-            are spread across quintiles in the <b>{tolower(names(indices_list)[indices_list == input$index_2])}</b> map.
+            "The chart below shows how Local Authorities in each quintile of the <span class=index1>{tolower(names(indices_list)[indices_list == input$index_1])}</span> map
+            are spread across quintiles in the <span class=index2>{tolower(names(indices_list)[indices_list == input$index_2])}</span> map.
             Some Local Authorities might appear quite differently on each map; for example, <b>{example_outlier_name}</b>
             is in the worst 20% in terms of {tolower(names(indices_list)[indices_list == input$index_1])} but appears in 
             quintile {example_outlier_index_2} for {tolower(names(indices_list)[indices_list == input$index_2])}."

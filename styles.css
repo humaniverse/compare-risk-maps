@@ -6,9 +6,19 @@
   /* padding: 0 1rem; */
   width: auto;
   font: inherit;
-  color: blue;
+  /* color: blue; */
   cursor: pointer;
   box-shadow: none;
+}
+
+#index_1, 
+.index_1 {
+  color: #008837;
+}
+
+#index_2,
+.index_2 {
+  color: #7b3294;
 }
 
 #index_1::-ms-expand,
@@ -33,7 +43,7 @@
 
 .flex-select > .form-group > div::after {
   content: "▼";
-  color: blue;
+  /*color: blue;*/
   font-size: 1rem;
   top: 0px;
   right: 15px;
@@ -54,4 +64,21 @@
 
 .shiny-input-container:not(.shiny-input-container-inline) {
   width: 100%;
+}
+
+/* Styling the words for the two selected indices */
+.index1 {
+  padding: 0.25rem 0.25rem 0.25rem 0.25rem;
+  background-color: #008837;
+  color: #fff;
+  font-weight: bold;
+  border-radius: .25rem;
+}
+
+.index2 {
+  padding: 0.25rem 0.25rem 0.25rem 0.25rem;
+  background-color: #7b3294;
+  color: #fff;
+  font-weight: bold;
+  border-radius: .25rem;
 }
