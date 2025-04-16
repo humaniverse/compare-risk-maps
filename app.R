@@ -6,17 +6,18 @@ library(leaflet)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-library(readr)
+# library(readr)
 library(stringr)
 library(plotly)
 library(sf)
-library(geographr)
+# library(geographr)
 library(networkD3)
 
 # ---- Load data ----
 # indices <- read_rds("data/indices.rds")
 indices_ranks <- read_rds("data/indices-ranks.rds")
 indices_quintiles <- read_rds("data/indices-quintile.rds")
+lad_boundaries <- read_rds("data/lad-boundaries.rds")
 
 indices_list <- c(
   "Community Resilience" = "cri",
@@ -130,7 +131,12 @@ ui <- page_fluid(
   # ---- Compare quintiles ----
   p(""),
   uiOutput("quintile_text"),
-  sankeyNetworkOutput("quintile_comparison")
+  sankeyNetworkOutput("quintile_comparison"),
+  
+  # ---- Map of similar/different areas ----
+  p(""),
+  p("This map highlights similarities and differences in the most vulnerable/deprived and/or least resilient areas."),
+  leafletOutput("map", height = 600)
 )
 
 # Server ----
@@ -160,6 +166,22 @@ server <- function(input, output, session) {
       select(
         ltla23_code,
         ltla23_name,
+        !!sym(input$index_1),
+        !!sym(input$index_2)
+      ) %>%
+      rename(
+        index_1 = !!sym(input$index_1),
+        index_2 = !!sym(input$index_2)
+      )
+  })
+  
+  selected_boundaries <- reactive({
+    req(input$index_1, input$index_2)
+    
+    lad_boundaries %>%
+      select(
+        ltla24_code,
+        ltla24_name,
         !!sym(input$index_1),
         !!sym(input$index_2)
       ) %>%
@@ -424,6 +446,60 @@ server <- function(input, output, session) {
       fontSize = 16,
       sinksRight = FALSE
     )
+  })
+  
+  # ---- Map ----
+  output$map <- renderLeaflet({
+    req(selected_boundaries())
+    
+    current_boundaries <- selected_boundaries() |> 
+      na.omit()
+    
+    # Categorise the lowest quintile areas
+    current_boundaries <- 
+      current_boundaries |> 
+      mutate(category = case_when(
+        index_1 == 1 & index_2 == 1 ~ "Worst 20% in both",
+        index_1 == 1 & index_2 != 1 ~ str_glue("Worst 20% in 1st map: {names(indices_list)[indices_list == input$index_1]}"),
+        index_1 != 1 & index_2 == 1 ~ str_glue("Worst 20% in 2nd map: {names(indices_list)[indices_list == input$index_2]}"),
+        .default = "Neither"
+      )) |> 
+      filter(category != "Neither")
+    
+    # Create a color palette for the categories
+    pal_cats <- colorFactor(c("#008837", "#7b3294", "grey"), domain = current_boundaries$category)
+    
+    # Popup labels
+    current_boundaries$popup <- 
+      str_glue(
+        "<b>{current_boundaries$ltla24_name}</b><br/>{current_boundaries$category}<br/><br/>{names(indices_list)[indices_list == input$index_1]} quintile {current_boundaries$index_1}<br/>{names(indices_list)[indices_list == input$index_2]} quintile {current_boundaries$index_2}"
+      ) |>
+      lapply(HTML)
+    
+    leaflet(current_boundaries) %>%
+      addTiles() %>%
+      addPolygons(
+        fillColor = ~pal_cats(category),
+        # weight = ~ifelse(highlight == "Highlighted", 3, 1),  # Change weight based on highlight
+        opacity = 1,
+        color = "white",
+        weight = 1,
+        # color = ~pal_highlight(highlight),
+        dashArray = "",
+        fillOpacity = 1,
+        # fillOpacity = ~ifelse(highlight == "Highlighted", 1, 0.7),  # Change fill opacity based on highlight
+        highlight = highlightOptions(
+          weight = 3,
+          color = "#666",
+          dashArray = "",
+          fillOpacity = 1,
+          bringToFront = TRUE),
+        label = ~popup
+      ) %>%
+      addLegend(pal = pal_cats, values = ~category,
+                opacity = 0.7, title = NULL,
+                # labFormat = formatNumberOrPercentage,
+                position = "bottomright")
   })
 }
 

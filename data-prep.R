@@ -120,3 +120,13 @@ indices_quintiles <-
   )
 
 write_rds(indices_quintiles, "data/indices-quintile.rds")
+
+# ---- Local Authority boundaries ----
+lad_boundaries <- 
+  boundaries_ltla24 |>
+  left_join(
+    indices_quintiles |> select(-ltla23_name), 
+    by = join_by(ltla24_code == ltla23_code)
+  )
+
+write_rds(lad_boundaries, "data/lad-boundaries.rds")
