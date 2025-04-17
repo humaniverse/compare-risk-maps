@@ -1,3 +1,7 @@
+#TODO: Add IMD for devolved nations
+#TODO: Add flooding, heat and wildfires (aggregated into LAs)
+#TODO: Add correlation heatmap comparing all indices - which are the most similar overall
+
 # Load required packages
 library(shiny)
 library(shinyjs)
@@ -22,6 +26,7 @@ lad_boundaries <- read_rds("data/lad-boundaries.rds")
 indices_list <- c(
   "Community Resilience" = "cri",
   "Deprivation" = "imd",
+  "Flood vulnerability" = "flooding",
   "Social Fabric" = "sofi"
 )
 
@@ -237,36 +242,53 @@ server <- function(input, output, session) {
     plot_data <- selected_ranks()
     
     # Generate axes rank labels
-    x_axis_rank_label <- ifelse(input$index_1 == "imd", "most deprived", "least resilient")
-    y_axis_rank_label <- ifelse(input$index_2 == "imd", "most deprived", "least resilient")
+    x_axis_rank_label <- case_match(
+      input$index_1,
+      "imd" ~ "most deprived",
+      "cri" ~ "least resilient",
+      "sofi" ~ "worst social fabric",
+      "flooding" ~ "most vulnerable"
+    )
+    
+    y_axis_rank_label <- case_match(
+      input$index_2,
+      "imd" ~ "most deprived",
+      "cri" ~ "least resilient",
+      "sofi" ~ "worst social fabric",
+      "flooding" ~ "most vulnerable"
+    )
     
     # Generate annotation labels
     x_annotation_lowest <- switch(
       input$index_1,
       "imd" = "More deprived",
       "sofi" = "Worse social fabric",
-      "cri" = "Less resilient"
+      "cri" = "Less resilient",
+      "flooding" = "More vulnerable"
     )
     
     x_annotation_highest <- switch(
       input$index_1,
       "imd" = "Less deprived",
       "sofi" = "Stronger social fabric",
-      "cri" = "More resilient"
+      "cri" = "More resilient",
+      "flooding" = "Less vulnerable"
     )
     
     y_annotation_lowest <- switch(
       input$index_2,
       "imd" = "More deprived",
       "sofi" = "Worse social fabric",
-      "cri" = "Less resilient"
+      "cri" = "Less resilient",
+      "flooding" = "More vulnerable"
     )
     
     y_annotation_highest <- switch(
       input$index_2,
       "imd" = "Less deprived",
       "sofi" = "Stronger social fabric",
-      "cri" = "More resilient"
+      "cri" = "More resilient",
+      "flooding" = "Less vulnerable"
     )
     
     p <- ggplot(plot_data, aes(x = index_1, y = index_2)) +
