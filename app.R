@@ -10,7 +10,7 @@ library(leaflet)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-# library(readr)
+library(readr)
 library(stringr)
 library(plotly)
 library(sf)
@@ -435,40 +435,57 @@ server <- function(input, output, session) {
   })
   
   output$quintile_comparison <- renderSankeyNetwork({
-    req(selected_quintiles())
-    
-    current_indices <- selected_quintiles() |> 
-      na.omit()
-    
-    # Create sankey diagram showing the flow of LAs between quintiles
-    links <- 
-      current_indices |> 
-      count(index_1, index_2, name = "value") |> 
-      mutate(
-        source = str_glue("{names(indices_list)[indices_list == input$index_1]} quintile {index_1}"),
-        target = str_glue("{names(indices_list)[indices_list == input$index_2]} quintile {index_2}")
-      ) |> 
-      mutate(
-        source = if_else(str_detect(source, "quintile 1"), paste0(source, " (worst 20%)"), source),
-        target = if_else(str_detect(target, "quintile 1"), paste0(target, " (worst 20%)"), target)
-      ) |> 
-      select(source, target, value)
-    
-    nodes <- tibble(name = unique(c(links$source, links$target)))
-    
-    # With networkD3, connection must be provided using id, not using real name like in the links dataframe. So we need to reformat it.
-    links$IDsource <- match(links$source, nodes$name)-1 
-    links$IDtarget <- match(links$target, nodes$name)-1
-    
-    # Make the Network
-    sankeyNetwork(
-      Links = links, Nodes = nodes,
-      Source = "IDsource", Target = "IDtarget",
-      Value = "value", NodeID = "name", 
-      fontSize = 16,
-      sinksRight = FALSE
-    )
-  })
+  req(selected_quintiles())
+  
+  current_indices <- selected_quintiles() |> 
+    na.omit()
+  
+  # Create sankey diagram showing the flow of LAs between quintiles
+  links <- 
+    current_indices |> 
+    count(index_1, index_2, name = "value") |> 
+    mutate(
+      source = str_glue("{names(indices_list)[indices_list == input$index_1]} quintile {index_1}"),
+      target = str_glue("{names(indices_list)[indices_list == input$index_2]} quintile {index_2}")
+    ) |> 
+    mutate(
+      source = if_else(str_detect(source, "quintile 1"), paste0(source, " (worst 20%)"), source),
+      target = if_else(str_detect(target, "quintile 1"), paste0(target, " (worst 20%)"), target)
+    ) |> 
+    select(source, target, value)
+  
+  # Define the desired order for quintiles
+  quintile_order <- c(
+    str_glue("{names(indices_list)[indices_list == input$index_1]} quintile 1 (worst 20%)"),
+    str_glue("{names(indices_list)[indices_list == input$index_1]} quintile 2"),
+    str_glue("{names(indices_list)[indices_list == input$index_1]} quintile 3"),
+    str_glue("{names(indices_list)[indices_list == input$index_1]} quintile 4"),
+    str_glue("{names(indices_list)[indices_list == input$index_1]} quintile 5"),
+    str_glue("{names(indices_list)[indices_list == input$index_2]} quintile 1 (worst 20%)"),
+    str_glue("{names(indices_list)[indices_list == input$index_2]} quintile 2"),
+    str_glue("{names(indices_list)[indices_list == input$index_2]} quintile 3"),
+    str_glue("{names(indices_list)[indices_list == input$index_2]} quintile 4"),
+    str_glue("{names(indices_list)[indices_list == input$index_2]} quintile 5")
+  )
+  
+  # Create nodes dataframe and enforce the order
+  nodes <- tibble(name = unique(c(links$source, links$target))) |>
+    mutate(name = factor(name, levels = quintile_order)) |>
+    arrange(name)
+  
+  # With networkD3, connection must be provided using id, not using real name like in the links dataframe. So we need to reformat it.
+  links$IDsource <- match(links$source, nodes$name) - 1
+  links$IDtarget <- match(links$target, nodes$name) - 1
+  
+  # Make the Network
+  sankeyNetwork(
+    Links = links, Nodes = nodes,
+    Source = "IDsource", Target = "IDtarget",
+    Value = "value", NodeID = "name", 
+    fontSize = 16,
+    sinksRight = FALSE
+  )
+})
   
   # ---- Map ----
   output$map <- renderLeaflet({
