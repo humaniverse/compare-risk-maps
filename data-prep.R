@@ -127,7 +127,7 @@ flood_england_ltla <-
   flood_england_ltla |> 
   mutate(
     flooding_rank = rank(-Score, ties.method = "min"),
-    flooding_quintile = ntile(Score, 5)
+    flooding_quintile = ntile(flooding_rank, 5)
   ) |> 
   select(ltla23_code, flooding_rank, flooding_quintile)
 
@@ -158,7 +158,7 @@ flood_wales_ltla <-
   flood_wales_ltla |> 
   mutate(
     flooding_rank = rank(-Score, ties.method = "min"),
-    flooding_quintile = ntile(Score, 5)
+    flooding_quintile = ntile(flooding_rank, 5)
   ) |> 
   select(ltla23_code, flooding_rank, flooding_quintile)
 
